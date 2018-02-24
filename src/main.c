@@ -8,9 +8,6 @@
 #include <taihen.h>
 
 
-int vshSblQafMgrIsAllowMarlinTest(void);
-
-
 static void log_write(const char *path, const char *buffer, size_t length){
 
 	SceUID fd = sceIoOpen(path,
