@@ -1,0 +1,29 @@
+﻿manufacturing mode
+
+This testing kit is not activated.
+
+This development kit is not activated.
+
+The backup battery has failed.
+
+Cannot check expiration date. Please set date via Internet.
+
+This Testing Kit is expired. See DevKit/TestKit Activation User's Guide.
+
+This Development Kit is expired. See DevKit/TestKit Activation User's Guide.
+
+This testing kit expires in %2d day +%02d:%02d:%02d
+
+This development kit expires in %2d day +%02d:%02d:%02d
+
+
+
+This testing kit expires in %2d day
++%02d:%02d:%02d.
+
+This development kit expires in %2d day
++%02d:%02d:%02d.
+
+This testing kit is expired.See Testing Kit Activation Guide.
+
+This development kit is expired.See Development Kit Activation Guide.
