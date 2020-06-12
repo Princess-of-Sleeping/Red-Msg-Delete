@@ -1,183 +1,123 @@
 #include <psp2/kernel/modulemgr.h>
 #include <psp2/kernel/processmgr.h>
-
 #include <psp2/io/stat.h>
 #include <psp2/io/dirent.h>
 #include <psp2/io/fcntl.h>
 
 #include <taihen.h>
 
+SceUID _vshKernelSearchModuleByName(const char *module_name, int *vsh_buf);
 
-static void log_write(const char *path, const char *buffer, size_t length){
+int module_get_offset(SceUID modid, int segidx, uint32_t offset, void *stub_out){
 
-	SceUID fd = sceIoOpen(path,
-		SCE_O_WRONLY | SCE_O_CREAT | SCE_O_APPEND, 0777);
-	if (fd < 0)
-		return;
+	int res = 0;
+	SceKernelModuleInfo info;
 
-	sceIoWrite(fd, buffer, length);
-	sceIoClose(fd);
+	if(segidx > 3){
+		return -1;
+	}
+
+	if(stub_out == NULL){
+		return -2;
+	}
+
+	res = sceKernelGetModuleInfo(modid, &info);
+	if(res < 0){
+		return res;
+	}
+
+	if(offset > info.segments[segidx].memsz){
+		return -3;
+	}
+
+	*(uint32_t *)stub_out = (uint32_t)(info.segments[segidx].vaddr + offset);
+
+	return 0;
 }
 
+const char patch[] = {0x00, 0x20, 0x70, 0x47};
 
-static SceUID hooks[10];
-static uint8_t current_hook = 0;
+int red_msg_inject(tai_module_info_t *info){
 
+	SceUID modid = info->modid;
 
-void InjectDataFunction(modid, addr, buf, size){
+	switch (info->module_nid){
+	case 0x0552F692: // SceShell 3.60 retail
+		taiInjectData(modid, 0, 0x14F466, patch, 4);
+		break;
+	case 0xEAB89D5C: // SceShell 3.60 Testkit
+		taiInjectData(modid, 0, 0x14789A, patch, 4);
+		break;
+	case 0x6CB01295: //  SceShell3.60 Devkit
+		taiInjectData(modid, 0, 0x146E9E, patch, 4);
+		break;
+	default:
+		return -1;
+	}
 
-	hooks[current_hook] = taiInjectData(modid, 0, addr, buf, size);
-
-	current_hook++;
+	return 0;
 }
 
+int delete_red_msg_without_enso(tai_module_info_t *info){
 
+	void *shell_top_widget, *widget_activate;
+	int (* update_string)(void *widget_ptr, void *a2, int a3);
 
+	SceUID modid = info->modid;
 
+	switch (info->module_nid){
+	case 0x0552F692: // SceShell 3.60 retail
+		module_get_offset(modid, 1, 0x21BA0, &shell_top_widget);
+		break;
+	case 0xEAB89D5C: // SceShell 3.60 Testkit
+		module_get_offset(modid, 1, 0x20918, &shell_top_widget);
+		break;
+	case 0x6CB01295: //  SceShell3.60 Devkit
+		module_get_offset(modid, 1, 0x208F8, &shell_top_widget);
+		break;
+	default:
+		return -1;
+	}
+
+	widget_activate = (void *)(*(int *)(*(int *)(shell_top_widget) + 0x1D8 + 8));
+
+	if(widget_activate != NULL){
+
+		update_string = (void *)(*(uint32_t *)(*(int *)(widget_activate) + 0x118));
+
+		int data[2];
+
+		data[0]= (int)&data[1];
+		data[1]= 0;
+
+		update_string(widget_activate, data, 0);
+	}
+
+	return 0;
+}
 
 void _start() __attribute__ ((weak, alias("module_start")));
-int module_start(SceSize args, void *argp) {
+int module_start(SceSize args, void *argp){
+
 	tai_module_info_t info;
 	info.size = sizeof(info);
 
+	if(taiGetModuleInfo("SceShell", &info) < 0)
+		return SCE_KERNEL_START_FAILED;
 
+	int buf[2];
 
-	if (taiGetModuleInfo("SceShell", &info) >= 0) {
+	int some_mode = (_vshKernelSearchModuleByName("SceSysStateMgr", buf) < 0) ? 0 : 1;
 
-
-		/* "manufacturing mode" / len : 35 */
-
-		int addr0 = -1;
-
-		/* "This testing kit is not activated." / len : 67 */
-
-		int addr1 = -1;
-
-
-		/* "This development kit is not activated." / len : 75 */
-
-		int addr2 = -1;
-
-
-		/* "The backup battery has failed." / len : 59 */
-
-		int addr3 = -1;
-
-
-		/* "Cannot check expiration date. Please set date via Internet." / len : 117 */
-
-		int addr4 = -1;
-
-
-		/* "This Testing Kit is expired. See DevKit/TestKit Activation User's Guide." / len : 143 */
-
-		int addr5 = -1;
-
-
-		/* "This Development Kit is expired. See DevKit/TestKit Activation User's Guide." / len : 151 */
-
-		int addr6 = -1;
-
-
-		/* "This testing kit expires in %2d day +%02d:%02d:%02d" / len : 101 */
-
-		int addr7 = -1;
-
-
-		/* "This development kit expires in %2d day +%02d:%02d:%02d" / len : 109 */
-
-		int addr8 = -1;
-
-
-		switch (info.module_nid) {
-
-
-			case 0x0552F692: { // retail 3.60 SceShell
-
-				addr0 = 0x50D62C;
-				addr1 = 0x50D654;
-				addr2 = 0x50D69C;
-				addr3 = 0x50D6EC;
-				addr4 = 0x50D72C;
-				addr5 = 0x50D7A4;
-				addr6 = 0x50D838;
-				addr7 = 0x50D8D4;
-				addr8 = 0x50D9A9;
-
-				break;
-
-			}
-
-			case 0xEAB89D5C: // PTEL 3.60 SceShell
-			{
-
-				addr0 = 0x501898;
-				addr1 = 0x5018C0;
-				addr2 = 0x501908;
-				addr3 = 0x501958;
-				addr4 = 0x501998;
-				addr5 = 0x501A10;
-				addr6 = 0x501AA4;
-				addr7 = 0x501B40;
-				addr8 = 0x501BA8;
-
-				break;
-
-			}
-
-
-			case 0x6CB01295: // PDEL 3.60 SceShell
-			{
-
-				addr0 = 0x4FC6B8;
-				addr1 = 0x4FC6E0;
-				addr2 = 0x4FC728;
-				addr3 = 0x4FC778;
-				addr4 = 0x4FC7B8;
-				addr5 = 0x4FC830;
-				addr6 = 0x4FC8C4;
-				addr7 = 0x4FC960;
-				addr8 = 0x4FC9C8;
-
-				break;
-			}
-
-
-			default: {
-
-				//log_write("ux0:red_msg_delete_log.txt", &info, 128);
-
-			}
-
-		}
-
-
-
-
-			if(addr0 >= 0)InjectDataFunction(info.modid, addr0, "\0", 35);
-			if(addr1 >= 0)InjectDataFunction(info.modid, addr1, "\0", 67);
-			if(addr2 >= 0)InjectDataFunction(info.modid, addr2, "\0", 75);
-			if(addr3 >= 0)InjectDataFunction(info.modid, addr3, "\0", 59);
-			if(addr4 >= 0)InjectDataFunction(info.modid, addr4, "\0", 117);
-			if(addr5 >= 0)InjectDataFunction(info.modid, addr5, "\0", 143);
-			if(addr6 >= 0)InjectDataFunction(info.modid, addr6, "\0", 151);
-			if(addr7 >= 0)InjectDataFunction(info.modid, addr7, "\0", 101);
-			if(addr8 >= 0)InjectDataFunction(info.modid, addr8, "\0", 109);
-
-
+	if(some_mode == 0){
+		delete_red_msg_without_enso(&info);
+	}else{
+		red_msg_inject(&info);
 	}
 
 	return SCE_KERNEL_START_SUCCESS;
 }
 
-int module_stop(SceSize args, void *argp) {
-
-
-	while (current_hook-- > 0){
-		taiInjectRelease(hooks[current_hook]);
-	}
-
-
-
+int module_stop(SceSize args, void *argp){
 	return SCE_KERNEL_STOP_SUCCESS;
 }
