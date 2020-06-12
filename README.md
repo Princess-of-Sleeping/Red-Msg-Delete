@@ -1,23 +1,7 @@
-# Red-Msg-Delete<br/>
+# Red-Msg-Delete
 
-<br/>
-<br/>
+Delete activation warning message
 
-\*main<br/>
-ur0:path/Red-Msg-Delete.suprx<br/>
+# Installing
 
-<br/>
-<br/>
-
-## The original spoofer
-
-<br/>
-
-![Screenshot](https://github.com/Princess-of-Sleeping/Red-Msg-Delete/raw/master/ss1.jpg)
-
-<br/>
-<br/>
-
-## The original spoofer + Red-Msg-Delete<br/>
-
-![Screenshot](https://github.com/Princess-of-Sleeping/Red-Msg-Delete/raw/master/ss2.jpg)
+Add under \*main in Taihen config.txt
