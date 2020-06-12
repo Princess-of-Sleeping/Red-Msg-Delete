@@ -8,25 +8,37 @@ if(NOT DEFINED CMAKE_TOOLCHAIN_FILE)
   endif()
 endif()
 
-project(Red-Msg-Delete)
+project(SceRedMsgDelete)
 include("${VITASDK}/share/vita.cmake" REQUIRED)
 
+set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wl,-q -Wall -O3 -fno-inline")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11 -fno-rtti -fno-exceptions")
 
+enable_language(C ASM)
 
-set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wl,-q -Wall -O3 -nostdlib")
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fno-rtti -fno-exceptions")
+include_directories(
+)
 
-
+link_directories(
+  ${CMAKE_CURRENT_BINARY_DIR}
+)
 
 add_executable(${PROJECT_NAME}
   src/main.c
 )
 
 target_link_libraries(${PROJECT_NAME}
-
-  taiHEN_stub
-
+  SceKernelModulemgr_stub
+  SceVshBridge_stub
+  taihen_stub
 )
 
-vita_create_self(${PROJECT_NAME}.suprx ${PROJECT_NAME} UNSAFE)
+set_target_properties(${PROJECT_NAME}
+  PROPERTIES LINK_FLAGS "-nostdlib"
+)
+
+vita_create_self(red_msg_del.suprx ${PROJECT_NAME}
+  UNSAFE
+  CONFIG exports.yml
+)
 
